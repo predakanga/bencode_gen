@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -196,31 +197,74 @@ func (pg *PackageGenerator) writePackage(w io.Writer) {
 		PackageName:      pg.pkg.Name,
 	}
 
+	// Always include ourselves
+	imports := map[string]string{"github.com/predakanga/bencode_gen/pkg": "pkg"}
+	// Reserve aliases for sort and strconv, to simplify the code generation
+	usedAliases := map[string]struct{}{"pkg": {}, "sort": {}, "strconv": {}}
+
+	// Simple function to find an available alias for an import, if the basename is already in use
+	importAlias := func(packagePath string) string {
+		if alias, ok := imports[packagePath]; ok {
+			return alias
+		}
+		aliasBase := packageBaseName(packagePath)
+		aliasIdx := 1
+		alias := aliasBase
+
+		for _, used := usedAliases[alias]; used; aliasIdx++ {
+			alias = aliasBase + strconv.Itoa(aliasIdx)
+		}
+
+		imports[packagePath] = alias
+		usedAliases[alias] = struct{}{}
+
+		return alias
+	}
+
 	// Store whether a type will need to sort as well, to avoid re-iterating
 	typeNeedsSort := make([]bool, len(pg.typeImpls))
 	for i, typeImpl := range pg.typeImpls {
-		for _, tok := range typeImpl {
+		for j, tok := range typeImpl {
 			switch tok.Type {
 			case "map_start":
-				headerCtx.NeedSort = true
+				imports["sort"] = "sort"
+				data := tok.Data.(castData)
+
 				typeNeedsSort[i] = true
+
+				if data.Import != "" {
+					data.Import = importAlias(data.Import)
+					pg.typeImpls[i][j].Data = data
+				}
 			case "string", "int":
-				headerCtx.NeedStrconv = true
+				imports["strconv"] = "strconv"
 			}
 		}
 	}
+
+	// Sort the list of imports and include it in the header
+	// Create a list of aliased imports at the same time
+	headerCtx.Imports = make([]string, 0, len(imports))
+	headerCtx.Aliases = make(map[string]string)
+	for k, v := range imports {
+		if v != packageBaseName(k) {
+			headerCtx.Aliases[k] = v
+		}
+		headerCtx.Imports = append(headerCtx.Imports, k)
+	}
+	sort.Strings(headerCtx.Imports)
 
 	// Output the header
 	render("package_header", w, headerCtx)
 
 	for i, tokens := range pg.typeImpls {
-		typeName := tokens[0].Data
+		typeName := tokens[0].Data.(string)
 		render("type_start", w, typeStartContext{typeName, typeNeedsSort[i]})
 
 		for _, tok := range mergeConstTokens(tokens[1:]) {
 			switch tok.Type {
 			case "const":
-				if len(tok.Data) == 1 {
+				if len(tok.Data.(string)) == 1 {
 					render("const_byte", w, tok.Data)
 				} else {
 					render("const_string", w, tok.Data)

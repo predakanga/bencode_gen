@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 )
 
 func must(f func() error) {
@@ -96,4 +97,8 @@ func render(tplName string, w io.Writer, ctx interface{}) {
 	if err := templates.ExecuteTemplate(w, tplName, ctx); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func packageBaseName(packagePath string) string {
+	return packagePath[strings.LastIndexByte(packagePath, '/')+1:]
 }

@@ -13,7 +13,7 @@ func mergeConstTokens(in []token) (out []token) {
 		var tok token
 		tok, in = in[0], in[1:]
 		if tok.Type == "const" {
-			constBuffer = constBuffer + tok.Data
+			constBuffer = constBuffer + tok.Data.(string)
 		} else {
 			if constBuffer != "" {
 				out = append(out, token{"const", constBuffer})
@@ -141,6 +141,7 @@ func (pg *PackageGenerator) listTokens(selector string, elemType types.Type) []t
 }
 
 func (pg *PackageGenerator) mapTokens(selector string, typ *types.Map) []token {
+	var castTo *types.TypeName
 	// TODO: Possibly extend this to support go.Stringer
 	keyType := typ.Key()
 	valType := typ.Elem()
@@ -148,8 +149,19 @@ func (pg *PackageGenerator) mapTokens(selector string, typ *types.Map) []token {
 		log.Fatalf("Can't encode %v: map keys may only be strings", selector)
 	}
 
-	tokens := []token{{"const", "d"}, {"map_start", selector}}
-	tokens = append(tokens, pg.typeTokens("k", keyType)...)
+	if namedType, ok := keyType.(*types.Named); ok {
+		castTo = namedType.Obj()
+	} else if _, ok := keyType.(*types.Basic); !ok {
+		log.Fatalf("Can't encode %v: expected types.Named or types.Basic, got %T", selector, keyType)
+	}
+
+	tokens := []token{{"const", "d"}}
+	if castTo == nil {
+		tokens = append(tokens, token{"map_start", castData{selector, "", ""}})
+	} else {
+		tokens = append(tokens, token{"map_start", castData{selector, castTo.Pkg().Path(), castTo.Name()}})
+	}
+	tokens = append(tokens, pg.typeTokens("idx", keyType)...)
 	tokens = append(tokens, pg.typeTokens(selector+"[k]", valType)...)
 	tokens = append(tokens, token{"map_end", selector}, token{"const", "e"})
 

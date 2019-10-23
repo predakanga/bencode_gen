@@ -66,5 +66,11 @@ func (d DefinitionSlice) Swap(i, j int) {
 
 type token struct {
 	Type string
-	Data string
+	Data interface{}
+}
+
+type castData struct {
+	Selector string
+	Import string
+	Type string
 }

@@ -6,8 +6,8 @@ type pkgHeaderContext struct {
 	GeneratorName    string
 	GeneratorVersion string
 	PackageName      string
-	NeedSort         bool
-	NeedStrconv      bool
+	Imports          []string
+	Aliases          map[string]string
 }
 
 type typeStartContext struct {
@@ -22,11 +22,13 @@ var templates = template.Must(template.New("root").Parse(`
 
 package {{.PackageName}}
 
+{{ if (len .Imports) ne 0 -}}
 import (
-	"github.com/predakanga/bencode_gen/pkg"{{ if .NeedSort }}
-	"sort"{{ end }}{{ if .NeedStrconv }}
-	"strconv"{{ end }}
+{{- range .Imports }}
+	{{- $alias := (index $.Aliases .) }}{{ if ($alias) ne "" }}{{ $alias }} {{ end }} "{{ . }}"
+{{ end -}}
 )
+{{- end }}
 {{- end }}
 
 {{ define "type_start" }}
@@ -90,11 +92,16 @@ func (x *{{.TypeName}}) WriteTo(w pkg.Writer) (err error) { {{- if .NeedsSort }}
 
 {{ define "map_start" }}
 	mapKeys = nil
-	for k, _ := range {{.}} {
-		mapKeys = append(mapKeys, k)
+	for k, _ := range {{.Selector}} {
+		mapKeys = append(mapKeys, {{ if (.Import) ne "" }}string(k){{ else }}k{{ end }})
 	}
 	sort.Sort(mapKeys)
-	for _, k := range mapKeys {
+	for _, idx := range mapKeys {
+	{{- if (.Import) ne "" }}
+		k := {{ .Import }}.{{ .Type }}(idx)
+	{{- else }}
+		k := idx
+	{{- end }}
 {{- end }}
 
 {{ define "map_end" }}
