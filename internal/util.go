@@ -5,10 +5,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go/ast"
 	"go/types"
-	"io"
 	"os"
 	"sort"
-	"strings"
 )
 
 func must(f func() error) {
@@ -93,12 +91,21 @@ func structHasTag(x types.Type, structName string) (found bool) {
 	return
 }
 
-func render(tplName string, w io.Writer, ctx interface{}) {
-	if err := templates.ExecuteTemplate(w, tplName, ctx); err != nil {
-		log.Fatal(err)
+func emptyMethod(typ types.Type) string {
+	switch elemType := typ.(type) {
+	case *types.Array, *types.Map, *types.Slice:
+		return "len"
+	case *types.Interface, *types.Pointer:
+		return "nil"
+	case *types.Basic:
+		switch {
+		case elemType.Info()&types.IsBoolean != 0:
+			return "false"
+		case elemType.Info()&types.IsNumeric != 0:
+			return "zero"
+		case elemType.Info()&types.IsString != 0:
+			return "len"
+		}
 	}
-}
-
-func packageBaseName(packagePath string) string {
-	return packagePath[strings.LastIndexByte(packagePath, '/')+1:]
+	return ""
 }

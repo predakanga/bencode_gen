@@ -2,7 +2,6 @@ package internal
 
 import (
 	"github.com/fatih/structtag"
-	"go/ast"
 	"go/types"
 	"regexp"
 	"strings"
@@ -45,32 +44,6 @@ func (f FieldSlice) Swap(i, j int) {
 	f[i], f[j] = f[j], f[i]
 }
 
-type Definition struct {
-	Ident  *ast.Ident
-	Object types.Object
-}
-
-type DefinitionSlice []Definition
-
-func (d DefinitionSlice) Len() int {
-	return len(d)
-}
-
-func (d DefinitionSlice) Less(i, j int) bool {
-	return d[i].Ident.Name < d[j].Ident.Name
-}
-
-func (d DefinitionSlice) Swap(i, j int) {
-	d[i], d[j] = d[j], d[i]
-}
-
-type token struct {
-	Type string
-	Data interface{}
-}
-
-type castData struct {
-	Selector string
-	Import string
-	Type string
+type typeContext struct {
+	NeedsSort bool
 }
