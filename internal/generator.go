@@ -221,7 +221,7 @@ func (pg *PackageGenerator) writePackage(w io.Writer) {
 		fn := genFile.Func().
 			Parens(jen.Id("x").Op("*").Id(k)).
 			Id("WriteTo").
-			Params(jen.Id("w").Qual("github.com/bencode_gen/pkg", "Writer")).
+			Params(jen.Id("w").Qual("github.com/predakanga/bencode_gen/pkg", "Writer")).
 			Parens(jen.Err().Error())
 		// Render the actual syntax tree
 		fn.BlockFunc(func(g *jen.Group) {
